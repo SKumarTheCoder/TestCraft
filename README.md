@@ -4,6 +4,48 @@ AI-driven mobile test automation that generates Appium specs from Zephyr cases, 
 
 ## Architecture
 
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                        TEST GENERATION (Manual)                         │
+│                                                                         │
+│  Jira / Zephyr Scale  ──►  AI Generator  ──►  Appium Test Specs        │
+│  (test cases+steps)        (OpenAI/Claude)     .spec.ts files          │
+│                                                   │                     │
+│                                                   ▼                     │
+│                                    ┌──────────────┴──────────────┐      │
+│                                    │  Validate on BrowserStack   │      │
+│                                    │  + Auto-Fix Loop (opt-in)  │      │
+│                                    └──────────────┬──────────────┘      │
+│                                                   │                     │
+│                                                   ▼                     │
+│                                        Commit to repo [skip ci]        │
+└─────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│                      NIGHTLY EXECUTION (Scheduled 2 AM IST)             │
+│                                                                         │
+│  Build APK + IPA  ──►  Upload to BrowserStack  ──►  Run Tests          │
+│                                                      (Android + iOS)    │
+│                                                      fail-fast: false   │
+│                                                           │             │
+│                                                     ┌─────┴─────┐      │
+│                                                     ▼           ▼      │
+│                                                   PASS         FAIL    │
+│                                                     │           │      │
+│                                                     ▼           ▼      │
+│                                              Slack Report    Auto-Fix  │
+│                                                               │       │
+│                                                     ┌─────────┼─────┐ │
+│                                                     ▼         ▼     ▼ │
+│                                              Fix Pass    Fix Fail  Log│
+│                                              Commit fix   Report   │  │
+│                                              [skip ci]      │      │  │
+│                                                           └──┼──┘  │  │
+│                                                              ▼     ▼  │
+│                                                          Slack Report  │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
 ```mermaid
 flowchart TB
     subgraph GEN["TEST GENERATION (Manual)"]
