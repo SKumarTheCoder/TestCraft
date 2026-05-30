@@ -54,7 +54,19 @@ export const config: Options.Testrunner = {
     retries: 1,
   },
 
-  reporters: ["spec"],
+  reporters: [
+    "spec",
+    [
+      "json",
+      {
+        outputDir: "./test-results",
+        combined: true,
+        outputFileFormat: function () {
+          return "wdio-report.json";
+        },
+      },
+    ],
+  ],
 
   services: [
     [

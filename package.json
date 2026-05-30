@@ -9,25 +9,27 @@
     "test:android": "wdio run src/runner/wdio.android.conf.ts",
     "test:ios": "wdio run src/runner/wdio.ios.conf.ts",
     "fix": "tsx scripts/auto-fix.ts",
-    "report:slack": "tsx scripts/send-slack-report.ts"
+    "report:slack": "tsx scripts/send-slack-report.ts",
+    "validate:tests": "tsx scripts/validate-tests.ts"
   },
   "dependencies": {
-    "webdriverio": "^9.0.0",
-    "@wdio/cli": "^9.0.0",
-    "@wdio/mocha-framework": "^9.0.0",
-    "@wdio/browserstack-service": "^9.0.0",
-    "@wdio/spec-reporter": "^9.0.0",
-    "@wdio/globals": "^9.0.0",
-    "chai": "^5.0.0",
-    "tsx": "^4.0.0",
-    "openai": "^4.0.0",
     "@anthropic-ai/sdk": "^0.30.0",
+    "@wdio/browserstack-service": "^9.0.0",
+    "@wdio/cli": "^9.0.0",
+    "@wdio/globals": "^9.0.0",
+    "@wdio/json-reporter": "^9.20.0",
+    "@wdio/mocha-framework": "^9.0.0",
+    "@wdio/spec-reporter": "^9.0.0",
+    "chai": "^5.0.0",
     "dotenv": "^16.0.0",
-    "pino": "^9.0.0"
+    "openai": "^4.0.0",
+    "pino": "^9.0.0",
+    "tsx": "^4.0.0",
+    "webdriverio": "^9.0.0"
   },
   "devDependencies": {
-    "typescript": "^5.5.0",
+    "@types/chai": "^5.0.0",
     "@types/node": "^22.0.0",
-    "@types/chai": "^5.0.0"
+    "typescript": "^5.5.0"
   }
 }

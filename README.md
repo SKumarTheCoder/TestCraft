@@ -124,6 +124,9 @@ Provider selection logic (in `src/shared/llm-client.ts`):
 |---|---|---|
 | `LOG_LEVEL` | `info` | Pino log level (`debug`, `info`, `warn`, `error`) |
 | `TARGET_PLATFORM` | `both` | Platform filter for test generation (`android`, `ios`, `both`) |
+| `VALIDATE_GENERATED_TESTS` | `false` | Set to `true` to run + auto-fix generated tests on BrowserStack before commit |
+| `VALIDATION_MAX_RETRIES` | `3` | Max auto-fix retry attempts during validation |
+| `TEST_RESULTS_DIR` | `./test-results` | Directory for test output artifacts |
 | `NODE_ENV` | — | Set to `production` to disable pino pretty-print |
 
 ---
@@ -171,6 +174,18 @@ npm run fix
 ```
 
 Parses failure logs from the last run, extracts context (failed selector, error type, page source XML), calls the LLM to generate a patch, applies it to the `.spec.ts` file, and re-runs only the fixed tests on BrowserStack.
+
+### Validate Generated Tests
+
+```bash
+# Validate both platforms (runs tests + auto-fix loop)
+npm run validate:tests
+
+# Validate a specific platform
+TARGET_PLATFORM=android npm run validate:tests
+```
+
+Runs the generated test suite on BrowserStack and auto-fixes failures in a loop (up to `VALIDATION_MAX_RETRIES`, default 3). Only exits successfully once all tests pass. This is also triggered during `npm run generate:tests` when `VALIDATE_GENERATED_TESTS=true`.
 
 ### Send Slack Report
 
@@ -251,6 +266,7 @@ testcraft/
 ├── scripts/                     # CLI entrypoints (run via tsx)
 │   ├── generate-tests.ts        # npm run generate:tests
 │   ├── auto-fix.ts              # npm run fix
+│   ├── validate-tests.ts        # npm run validate:tests
 │   └── send-slack-report.ts     # npm run report:slack
 │
 └── src/
@@ -304,6 +320,16 @@ testcraft/
    - Assertions matching expected results
 7. File is written to `src/runner/specs/{platform}/{testcase-key}.spec.ts`
 8. Generated files are committed with message `chore(tests): auto-generate from Zephyr [skip ci]`
+
+#### Validation Mode
+
+When `VALIDATE_GENERATED_TESTS=true` (or CI `validate` input is set), the generator adds a validation phase after generation:
+
+1. All generated `.spec.ts` files are run on BrowserStack via `validate-tests.ts`
+2. If any test fails, the auto-fix pipeline analyzes the failure and patches the locator/waits/assertions
+3. The fixed tests are re-run on BrowserStack
+4. Steps 2–3 repeat up to `VALIDATION_MAX_RETRIES` (default 3)
+5. If all tests pass → commit is allowed; if any still fail → commit is skipped with exit code 1
 
 ### 2. Nightly Execution
 
