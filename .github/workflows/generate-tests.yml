@@ -1,0 +1,62 @@
+name: Generate Tests from Zephyr
+
+on:
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: 'Target platform(s)'
+        required: true
+        default: 'both'
+        type: choice
+        options:
+          - both
+          - android
+          - ios
+      project_key:
+        description: 'Zephyr project key (default: from .env)'
+        required: false
+        type: string
+      model:
+        description: 'LLM model override'
+        required: false
+        type: string
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate test specs
+        run: npx tsx scripts/generate-tests.ts
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          TEST_GENERATION_MODEL: ${{ inputs.model || '' }}
+          JIRA_BASE_URL: ${{ secrets.JIRA_BASE_URL }}
+          JIRA_EMAIL: ${{ secrets.JIRA_EMAIL }}
+          JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
+          ZEPHYR_PROJECT_KEY: ${{ inputs.project_key || secrets.ZEPHYR_PROJECT_KEY }}
+          TARGET_PLATFORM: ${{ inputs.platform }}
+
+      - name: Commit generated tests
+        run: |
+          git config user.name "test-automation-bot"
+          git config user.email "bot@automation.local"
+          git add src/runner/specs/
+          if git diff --cached --quiet; then
+            echo "No new test files to commit."
+          else
+            git commit -m "chore(tests): auto-generate from Zephyr [skip ci]"
+            git push
+          fi

@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.env
+*.log
+test-results/
+allure-results/
+.wdio-docker/
+.idea/
+*.tsbuildinfo

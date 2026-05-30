@@ -1,0 +1,191 @@
+name: Nightly Mobile Tests
+
+on:
+  schedule:
+    - cron: "0 2 * * *"
+      timezone: "Asia/Kolkata"
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Build environment'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+      skip_fix:
+        description: 'Skip auto-fix step'
+        required: false
+        default: false
+        type: boolean
+
+env:
+  NODE_VERSION: 20
+
+jobs:
+  build-and-upload:
+    runs-on: ubuntu-latest
+    outputs:
+      android_app_id: ${{ steps.upload-android.outputs.app_id }}
+      ios_app_id: ${{ steps.upload-ios.outputs.app_id }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Android APK
+        run: |
+          echo "Building Android APK for ${{ github.event.inputs.environment || 'staging' }}..."
+          # cd android && ./gradlew assembleRelease
+
+      - name: Build iOS IPA
+        run: |
+          echo "Building iOS IPA for ${{ github.event.inputs.environment || 'staging' }}..."
+          # xcodebuild -workspace ios/App.xcworkspace -scheme App -configuration Release -archivePath build/App.xcarchive archive
+
+      - name: Upload Android to BrowserStack
+        id: upload-android
+        run: |
+          APP_ID=$(npx tsx src/runner/browserstack/upload.ts --platform android --app-path app/build/outputs/apk/release/app-release.apk)
+          echo "app_id=$APP_ID" >> "$GITHUB_OUTPUT"
+        env:
+          BROWSERSTACK_USERNAME: ${{ secrets.BROWSERSTACK_USERNAME }}
+          BROWSERSTACK_ACCESS_KEY: ${{ secrets.BROWSERSTACK_ACCESS_KEY }}
+
+      - name: Upload iOS to BrowserStack
+        id: upload-ios
+        run: |
+          APP_ID=$(npx tsx src/runner/browserstack/upload.ts --platform ios --app-path build/App.ipa)
+          echo "app_id=$APP_ID" >> "$GITHUB_OUTPUT"
+        env:
+          BROWSERSTACK_USERNAME: ${{ secrets.BROWSERSTACK_USERNAME }}
+          BROWSERSTACK_ACCESS_KEY: ${{ secrets.BROWSERSTACK_ACCESS_KEY }}
+
+  test:
+    needs: build-and-upload
+    strategy:
+      matrix:
+        platform: [android, ios]
+      fail-fast: false
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ${{ matrix.platform }} tests
+        id: test-run
+        run: |
+          npm run test:${{ matrix.platform }}
+        env:
+          BROWSERSTACK_USERNAME: ${{ secrets.BROWSERSTACK_USERNAME }}
+          BROWSERSTACK_ACCESS_KEY: ${{ secrets.BROWSERSTACK_ACCESS_KEY }}
+          BROWSERSTACK_APP_ID: ${{ matrix.platform == 'android' && needs.build-and-upload.outputs.android_app_id || needs.build-and-upload.outputs.ios_app_id }}
+        continue-on-error: true
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: results-${{ matrix.platform }}-${{ github.run_id }}
+          path: test-results/
+          retention-days: 7
+
+      - name: Export test outcome
+        id: outcome
+        if: always()
+        run: |
+          echo "status=${{ steps.test-run.outcome }}" >> "$GITHUB_OUTPUT"
+
+    outputs:
+      android_status: ${{ steps.outcome.outputs.status }}
+      ios_status: ${{ steps.outcome.outputs.status }}
+
+  auto-fix:
+    needs: test
+    if: ${{ always() && (needs.test.outputs.android_status == 'failure' || needs.test.outputs.ios_status == 'failure') && !inputs.skip_fix }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: results-*-${{ github.run_id }}
+          path: test-results/
+
+      - name: Run auto-fix
+        id: fix
+        run: npx tsx scripts/auto-fix.ts
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          AUTO_FIX_MODEL: ${{ vars.AUTO_FIX_MODEL || '' }}
+          BROWSERSTACK_USERNAME: ${{ secrets.BROWSERSTACK_USERNAME }}
+          BROWSERSTACK_ACCESS_KEY: ${{ secrets.BROWSERSTACK_ACCESS_KEY }}
+        continue-on-error: true
+
+      - name: Commit fixes
+        run: |
+          git config user.name "test-automation-bot"
+          git config user.email "bot@automation.local"
+          git add src/runner/specs/
+          if git diff --cached --quiet; then
+            echo "No fixes to commit."
+          else
+            git commit -m "fix(tests): auto-heal failing locators [skip ci]"
+            git push
+          fi
+
+    outputs:
+      fix_status: ${{ steps.fix.outcome }}
+
+  report:
+    needs: [test, auto-fix]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: results-*-${{ github.run_id }}
+          path: test-results/
+
+      - name: Send Slack report
+        run: npx tsx scripts/send-slack-report.ts
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_REF_NAME: ${{ github.ref_name }}
