@@ -27,6 +27,7 @@ npm install
 | `npm run fix` | `tsx scripts/auto-fix.ts` — parses failure logs, generates patch, re-runs fixed tests |
 | `npm run validate:tests` | `tsx scripts/validate-tests.ts` — runs tests + auto-fix loop up to `VALIDATION_MAX_RETRIES` (default 3) |
 | `npm run report:slack` | `tsx scripts/send-slack-report.ts` |
+| `npm run tui` | `tsx scripts/tui.ts` — terminal dashboard with live status, history, and action shortcuts |
 
 All scripts use `tsx` to run TypeScript directly (no compile step).
 

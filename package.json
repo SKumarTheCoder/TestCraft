@@ -10,6 +10,7 @@
     "test:ios": "wdio run src/runner/wdio.ios.conf.ts",
     "fix": "tsx scripts/auto-fix.ts",
     "report:slack": "tsx scripts/send-slack-report.ts",
+    "tui": "tsx scripts/tui.ts",
     "validate:tests": "tsx scripts/validate-tests.ts"
   },
   "dependencies": {
@@ -22,12 +23,14 @@
     "@wdio/spec-reporter": "^9.0.0",
     "chai": "^5.0.0",
     "dotenv": "^16.0.0",
+    "neo-blessed": "^0.2.0",
     "openai": "^4.0.0",
     "pino": "^9.0.0",
     "tsx": "^4.0.0",
     "webdriverio": "^9.0.0"
   },
   "devDependencies": {
+    "@types/blessed": "^0.1.27",
     "@types/chai": "^5.0.0",
     "@types/node": "^22.0.0",
     "typescript": "^5.5.0"

@@ -234,6 +234,30 @@ TARGET_PLATFORM=android npm run validate:tests
 
 Runs the generated test suite on BrowserStack and auto-fixes failures in a loop (up to `VALIDATION_MAX_RETRIES`, default 3). Only exits successfully once all tests pass. This is also triggered during `npm run generate:tests` when `VALIDATE_GENERATED_TESTS=true`.
 
+### Terminal Dashboard (TUI)
+
+```bash
+npm run tui
+```
+
+Opens a terminal dashboard with:
+- **Status boxes** — last run result per platform (Android / iOS) with pass counts
+- **Summary** — total tests, pass rate, failure breakdown
+- **Recent results** — scrollable history of validation runs
+- **Actions menu** — key shortcuts to trigger commands without leaving the TUI
+- **Log area** — live output from running commands
+
+| Key | Action |
+|---|---|
+| `1` | Generate tests |
+| `2` | Run Android on BrowserStack |
+| `3` | Run iOS on BrowserStack |
+| `4` | Validate all (run + auto-fix loop) |
+| `5` | Auto-fix failed tests |
+| `6` | Send Slack report |
+| `r` | Refresh dashboard |
+| `q` | Quit |
+
 ### Send Slack Report
 
 ```bash
@@ -314,6 +338,7 @@ testcraft/
 │   ├── generate-tests.ts        # npm run generate:tests
 │   ├── auto-fix.ts              # npm run fix
 │   ├── validate-tests.ts        # npm run validate:tests
+│   ├── tui.ts                   # npm run tui
 │   └── send-slack-report.ts     # npm run report:slack
 │
 └── src/
