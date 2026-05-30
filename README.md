@@ -4,39 +4,44 @@ AI-driven mobile test automation that generates Appium specs from Zephyr cases, 
 
 ## Architecture
 
-```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                        TEST GENERATION (Manual)                         │
-│                                                                         │
-│  Jira / Zephyr Scale  ──►  AI Generator  ──►  Appium Test Specs        │
-│  (test cases+steps)        (OpenAI/Claude)     .spec.ts files          │
-│                                                   │                     │
-│                                                   ▼                     │
-│                                        Commit to repo [skip ci]        │
-└─────────────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    subgraph GEN["TEST GENERATION (Manual)"]
+        A[Jira / Zephyr Scale] --> B[AI Generator<br/>OpenAI / Claude]
+        B --> C[Appium Test Specs<br/>.spec.ts files]
+        C -- VALIDATE_GENERATED_TESTS=true --> D[BrowserStack Run<br/>+ Auto-Fix Loop]
+        D --> C
+        D --> E[Commit to repo<br/>[skip ci]]
+        C --> E
+    end
 
-┌─────────────────────────────────────────────────────────────────────────┐
-│                      NIGHTLY EXECUTION (Scheduled)                      │
-│                                                                         │
-│  Build APK + IPA  ──►  Upload to BrowserStack  ──►  Run Tests          │
-│                                                      (Android + iOS)    │
-│                                                           │             │
-│                                                     ┌─────┴─────┐      │
-│                                                     ▼           ▼      │
-│                                                   PASS         FAIL    │
-│                                                     │           │      │
-│                                                     ▼           ▼      │
-│                                              Slack Report    Auto-Fix  │
-│                                                               │       │
-│                                                     ┌─────────┼─────┐ │
-│                                                     ▼         ▼     ▼ │
-│                                              Fix Pass    Fix Fail  Log│
-│                                              Commit fix   Report   │  │
-│                                              [skip ci]      │      │  │
-│                                                           └──┼──┘  │  │
-│                                                              ▼     ▼  │
-│                                                          Slack Report  │
-└─────────────────────────────────────────────────────────────────────────┘
+    subgraph NIGHTLY["NIGHTLY EXECUTION (Scheduled 2 AM IST)"]
+        F[Build APK + IPA] --> G[Upload to BrowserStack]
+        G --> H[Run Tests<br/>Android + iOS Matrix<br/>fail-fast: false]
+        H --> I{PASS?}
+        I -- Yes --> J[Slack Report]
+        I -- No --> K[Auto-Fix Pipeline]
+        K --> L{Fix Succeeds?}
+        L -- Yes --> M[Commit Fix<br/>[skip ci]]
+        L -- No --> N[Log for Review]
+        M --> J
+        N --> J
+    end
+
+    style A fill:#fff2cc
+    style B fill:#dae8fc
+    style C fill:#dae8fc
+    style D fill:#ffe6cc
+    style E fill:#d5e8d4
+    style F fill:#dae8fc
+    style G fill:#e1d5e7
+    style H fill:#dae8fc
+    style I fill:#ffe6cc
+    style J fill:#f8cecc
+    style K fill:#dae8fc
+    style L fill:#ffe6cc
+    style M fill:#d5e8d4
+    style N fill:#f8cecc
 ```
 
 ## Table of Contents
